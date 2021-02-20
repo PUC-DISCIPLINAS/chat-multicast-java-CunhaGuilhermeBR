@@ -11,11 +11,12 @@ import java.io.*;
 public class ChatRoom {
 	static Scanner read = new Scanner(System.in);
     static FileSystem fs = new FileSystem();
+    static boolean write, cont = true;
     
 	public static void createRoom(String ip) throws IOException {
-	
+	    
 		MulticastSocket mSocket = null;
-	
+		fs.delete(ip);
 		try {
 			// Esse IP foi reservado para o armazenamento dos dados do sistema
 			String adress = "224.1.1.1";
@@ -30,7 +31,6 @@ public class ChatRoom {
 		} catch (IOException e) {
 			System.out.println("IO: " + e.getMessage());
 		}
-		
 		System.out.println("Sala criada com o ip:" + ip);
 	}
 	
@@ -61,56 +61,71 @@ public class ChatRoom {
 			InetAddress groupIp = InetAddress.getByName(ip);
 			// Gambiarra, o sistema salva o nome do user num arquivo externo para ser feito a leitura
 		    fs.gravar(user, ip);
-			
-			do {
+//		    readUsers(user);
+		    writeUsers(user);
+		    new Thread(() -> readMessage(ip)).start();
+//		    new Thread(() -> readUsers(user,write)).start();
+		    do {
 				// O usuário digita a mensagem e o sistema verifica se essa mensagem é algum dos comandos
 				String message = read.nextLine();
 				// Caso ele queira a lista dos membros na sala ele imprime o arquivo externo
-				if(message.equals("-listar"))
+				if(message.equals("-listar")) {
 					System.out.println(fs.ler(ip));
+//					write = true;
+				}
+				
 				// Caso ele queira sair o sistema deleta o arquivo de membros e sai da sala
 				if(message.equals("-sair")) {
 					fs.delete(ip);
 					return;
 				}
 				// Caso não seja ele escreve 
-				new Thread(() -> writeMessage(ip, user + "-> "+ message)).start(); 
-				new Thread(() -> readMessage(ip)).start();
-				
+				new Thread(() -> writeMessage(ip, user + "-> "+ message)).start(); 				
 			} while (true);
 		} catch (IOException e) {
 			System.out.println("IO: " + e.getMessage());
 		} 
 	}
-//	
-//	private static void  listUsers(String user, boolean read) {
-//		try {
-//
-//			MulticastSocket mSocket = null;
-//			String adress = "224.1.1.2";
-//            InetAddress groupIp = InetAddress.getByName(adress);
-//			mSocket = new MulticastSocket(6789);
-//			mSocket.joinGroup(groupIp);
-//			String users = user + ",";
-//			byte[] message = users.getBytes();
-//			DatagramPacket membersOut = new DatagramPacket(message, message.length, groupIp, 6789);
-//			mSocket.send(membersOut);
-//			byte[] buffer = new byte[1000];
-//			if(read) {
-//				for (int i = 0; i < 1; i++) { // get messages from others in group
-//					DatagramPacket membersIn = new DatagramPacket(buffer, buffer.length);
-//					mSocket.receive(membersIn);
-//					System.out.println("Membros:" + new String(membersIn.getData()).trim());
-//				}
-//			}	
-//			mSocket.leaveGroup(groupIp);
-//		}catch (SocketException e) {
-//			System.out.println("Socket: " + e.getMessage());
-//		} catch (IOException e) {
-//			System.out.println("IO: " + e.getMessage());
-//		}
-//	
-//	}
+	
+	private static void  readUsers(String user, boolean write) {
+		try {
+			MulticastSocket mSocket = null;
+			String addres = "224.1.1.1";
+			InetAddress groupIp = InetAddress.getByName(addres);
+			mSocket = new MulticastSocket(6788);
+			mSocket.joinGroup(groupIp);
+			byte[] buffer = new byte[10000];
+			DatagramPacket messageIn = new DatagramPacket(buffer, buffer.length);
+			do {
+				mSocket.receive(messageIn);
+				if(write) {
+		            System.out.println(new String(messageIn.getData()).trim());
+                    write = false;
+				}
+			} while(cont);
+		}catch (SocketException e) {
+			System.out.println("Socket: " + e.getMessage());
+		} catch (IOException e) {
+			System.out.println("IO: " + e.getMessage());
+		}
+	
+	}
+	
+	public static void writeUsers(String user) {
+		try {
+			MulticastSocket mSocket = null;
+			String addres = "224.1.1.1";
+			InetAddress groupIp = InetAddress.getByName(addres);
+			mSocket = new MulticastSocket(6788);
+			byte[] message = user.getBytes();
+			DatagramPacket messageOut = new DatagramPacket(message, message.length, groupIp, 6789);
+			mSocket.send(messageOut);
+		}catch (SocketException e) {
+			System.out.println("Socket: " + e.getMessage());
+		} catch (IOException e) {
+			System.out.println("IO: " + e.getMessage());
+		}	
+	}
 
 	private static void readMessage(String ip){
 		try {
@@ -118,10 +133,14 @@ public class ChatRoom {
 			InetAddress groupIp = InetAddress.getByName(ip);
 			mSocket = new MulticastSocket(6789);
 			mSocket.joinGroup(groupIp);
-			byte[] buffer = new byte[1000];
+			byte[] buffer = new byte[10000];
 			DatagramPacket messageIn = new DatagramPacket(buffer, buffer.length);
-		    mSocket.receive(messageIn);
-            System.out.println(new String(messageIn.getData()).trim());
+			do {
+				mSocket.receive(messageIn);
+		            System.out.println(new String(messageIn.getData()).trim());
+		            messageIn.setData(new byte[10000]);
+			} while(cont);
+		   
 		}catch (SocketException e) {
 			System.out.println("Socket: " + e.getMessage());
 		} catch (IOException e) {
@@ -142,8 +161,13 @@ public class ChatRoom {
 			System.out.println("Socket: " + e.getMessage());
 		} catch (IOException e) {
 			System.out.println("IO: " + e.getMessage());
-		}
-		
+		}	
 	}
-
+	
+//	 private static void clearBuffer(Scanner scanner) {
+//	        if (scanner.hasNextLine()) {
+//	            System.out.println("Digite enter para continuar");
+//	        	scanner.nextLine();
+//	        }
+//	    }
 }

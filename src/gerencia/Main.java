@@ -42,7 +42,7 @@ public class Main extends Thread {
 	                     case 3:
 	                    	 System.out.println("Qual o ip da sala que você quer entrar?");
 	                         String room = read.next();
-	  	                	 System.out.println("Digite -sair para sair e -listar para listar os membros da sala");
+	                         System.out.println("Digite -sair para sair e -listar para listar os membros da sala");
 	                    	 ChatRoom.enterRoom(room, user.getName());
 	                    	 break;
 	                     case 4: 
